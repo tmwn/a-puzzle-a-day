@@ -1,12 +1,18 @@
 import React, { useState } from "react";
-import { Solver } from "./solver";
+import { Problem } from "./data";
+import { Main } from "./solver";
 
 export function App() {
-    const [md, setMD] = useState(newMonthDay())
+    const [problem, setProblem] = useState(() => {
+        const md = newMonthDay()
+        return new Problem(md.month, md.day)
+    })
 
-    return <div className="pure-g">
-        <MonthDayInput md={md} onChange={setMD} />
-        <Solver month={md.month} day={md.day} />
+    return <div>
+        <MonthDayInput md={{ month: problem.month, day: problem.day }} onChange={(md) => {
+            setProblem(new Problem(md.month, md.day))
+        }} />
+        <Main problem={problem} onChange={setProblem} />
     </div >
 }
 
@@ -25,18 +31,32 @@ const newMonthDay = () => {
 
 function MonthDayInput(props: { md: MonthDay, onChange: (md: MonthDay) => void }) {
     const { md, onChange } = props
-    return <>
+    return <form className="pure-form pure-g">
         <div className="pure-u-1-4" />
         <div className="pure-u-1-4">
-            <label>Month
-                <input type="number" min={1} max={12} value={md.month} onChange={(e) => onChange({ day: md.day, month: parseInt(e.target.value) })} />
-            </label>
+            <label>Month</label>
+            <input className="pure-input-1" type="number" min={-1} max={13} value={md.month} onChange={(e) => {
+                let v = parseInt(e.target.value)
+                if (!v) {
+                    return
+                }
+                if (v < 1) v = 12
+                if (v > 12) v = 1
+                onChange({ day: md.day, month: v })
+            }} />
         </div>
         <div className="pure-u-1-4">
-            <label>Day
-                <input type="number" min={1} max={31} value={md.day} onChange={(e) => onChange({ month: md.month, day: parseInt(e.target.value) })} />
-            </label>
+            <label>Day</label>
+            <input className="pure-input-1" type="number" min={-1} max={32} value={md.day} onChange={(e) => {
+                let [d, m] = [parseInt(e.target.value), md.month]
+                if (!d) {
+                    return
+                }
+                if (d < 1) { d = 31; m -= 1 }
+                if (d > 31) { d = 1; m += 1; if (m > 12) m = 1 }
+                onChange({ month: m, day: d })
+            }} />
         </div>
         <div className="pure-u-1-4" />
-    </>
+    </form>
 }
