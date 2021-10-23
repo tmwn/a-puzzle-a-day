@@ -53,17 +53,6 @@ export function Solver(props: { problem: Problem }) {
     </div>
 }
 
-function clone(field: Matrix<CellKind>): Matrix<CellKind> {
-    const res = new Array<Array<CellKind>>()
-    for (let i = 0; i < H; i++) {
-        res.push([])
-        for (let j = 0; j < W; j++) {
-            res[i].push(field[i][j])
-        }
-    }
-    return res
-}
-
 function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, limit: number, res: Array<Matrix<CellKind>>) {
     while (prob.has(x, y)) {
         y++
