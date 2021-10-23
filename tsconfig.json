@@ -5,7 +5,7 @@
             "dom"
         ],
         "jsx": "react",
-        "module": "commonjs",
+        "module": "esnext",
         "target": "esnext",
         "strict": true,
         "esModuleInterop": true,

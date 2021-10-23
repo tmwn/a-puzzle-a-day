@@ -18,7 +18,7 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
         }
         const p = pieces[pi][o]
         const b = new Array<Array<CellKind>>()
-        const n = Math.max(p.shape.height(), p.shape.width())
+        const n = Math.max(p.shape.height(), p.shape.width)
         for (let i = 0; i < n; i++) {
             b.push([])
             for (let j = 0; j < n; j++) {

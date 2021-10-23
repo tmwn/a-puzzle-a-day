@@ -21,7 +21,6 @@ module.exports = {
         static: {
             directory: path.join(__dirname, 'docs'),
         },
-        // watchContentBase: true,
         host: '0.0.0.0',
     },
 }

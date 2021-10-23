@@ -2,7 +2,6 @@
 export class Problem {
     month: number
     day: number
-    // field: Matrix<CellKind>
     masks: Array<number>
     rest: number
     location: Array<[number, number, Piece] | null>
@@ -23,7 +22,7 @@ export class Problem {
         }
 
         const h = piece.shape.height()
-        const w = piece.shape.width()
+        const w = piece.shape.width
 
         if (computeOffset) {
             let offY = 0
@@ -79,7 +78,7 @@ export class Problem {
         if (!this.location[k]) return false
         const [x, y, p] = this.location[k]!
         const [i, j] = [col - x, row - y]
-        if (i < 0 || i >= p.shape.height() || j < 0 || j >= p.shape.width()) return false
+        if (i < 0 || i >= p.shape.height() || j < 0 || j >= p.shape.width) return false
         return p.shape.at(i, j) === 1
     }
     has(x: number, y: number): boolean {
@@ -96,20 +95,30 @@ export class Problem {
         for (let k = 0; k < 8; k++) {
             if (!this.location[k]) continue
             const [x, y, p] = this.location[k]!
-            for (let i = 0; i < p.shape.height(); i++) for (let j = 0; j < p.shape.width(); j++) {
+            for (let i = 0; i < p.shape.height(); i++) for (let j = 0; j < p.shape.width; j++) {
                 if (this.contains(k, x + i, y + j)) res[x + i][y + j] = k
             }
         }
         return res
     }
-
     clone(): Problem {
-        const res = new Problem(this.month, this.day)
-        for (let i = 0; i < H; i++) res.masks[i] = this.masks[i]
-        for (let i = 0; i < 8; i++) res.location[i] = this.location[i]
-        res.rest = this.rest
-        return res
+        return deepClone(this)
     }
+}
+
+export function deepClone(problem: Problem): Problem {
+    const res = new Problem(problem.month, problem.day)
+    for (let i = 0; i < H; i++) res.masks[i] = problem.masks[i]
+    for (let i = 0; i < 8; i++) {
+        if (!problem.location[i]) continue
+        const [x, y, p] = problem.location[i]!
+        res.location[i] = [x, y, {
+            kind: p.kind,
+            shape: new Shape(p.shape.rows, p.shape.width),
+        }]
+    }
+    res.rest = problem.rest
+    return res
 }
 
 export enum CellKind {
@@ -132,23 +141,20 @@ export interface Piece {
 
 class Shape {
     rows: Array<number>
-    private w: number
+    readonly width: number
     constructor(rows: Array<number>, w: number) {
         this.rows = rows
-        this.w = w
+        this.width = w
     }
     height() {
         return this.rows.length
-    }
-    width() {
-        return this.w
     }
 
     at(i: number, j: number): number {
         return (this.rows[i]) >> j & 1
     }
     rotated(): Shape {
-        const [h, w] = [this.rows.length, this.w]
+        const [h, w] = [this.rows.length, this.width]
         const rows = new Array<number>()
         for (let i = 0; i < w; i++) {
             let row = 0
@@ -160,7 +166,7 @@ class Shape {
         return new Shape(rows, h)
     }
     flipped(): Shape {
-        const [h, w] = [this.rows.length, this.w]
+        const [h, w] = [this.rows.length, this.width]
         const rows = new Array<number>()
         for (let i = 0; i < h; i++) {
             let row = 0
@@ -172,7 +178,7 @@ class Shape {
         return new Shape(rows, w)
     }
     equals(other: Shape): boolean {
-        if (this.w != other.w) return false
+        if (this.width != other.width) return false
         for (let i = 0; i < this.rows.length; i++) if (this.rows[i] != other.rows[i]) return false
         return true
     }
@@ -222,17 +228,6 @@ function allOrientaion(initial: Piece): Array<Piece> {
         p = flipped(p)
     }
     return res
-}
-
-function sameShape(shape1: Matrix<boolean>, shape2: Matrix<boolean>): boolean {
-    if (shape1.length !== shape2.length) return false
-    const [h, w] = [shape1.length, shape1[0].length]
-    for (let i = 0; i < h; i++) {
-        for (let j = 0; j < w; j++) {
-            if (shape1[i][j] !== shape2[i][j]) return false
-        }
-    }
-    return true
 }
 
 export function rotated(piece: Piece): Piece {
