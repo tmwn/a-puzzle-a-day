@@ -1,35 +1,43 @@
-import React, { CSSProperties, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BoardView } from "./board";
-import { Matrix, CellKind, newBoard, Piece, H, W, allPieces, Problem } from "./data";
-import { Editor } from "./editor";
+import { Matrix, CellKind, Piece, H, W, allPieces, Problem } from "./data";
 
-export function Main(props: { problem: Problem, onChange: (problem: Problem) => void }) {
-    const { problem, onChange } = props
-    return <div className="pure-g">
-        <div className="pure-u-1-2">
-            <Editor problem={problem} onChange={onChange} />
-        </div>
-        <div className="pure-u-1-2">
-            <Solver problem={problem} />
-        </div>
-    </div>
-}
-
-function Solver(props: { problem: Problem }) {
+export function Solver(props: { problem: Problem }) {
     const { problem } = props
     const [solutions, setSolutions] = useState<Array<Matrix<CellKind>>>([])
 
     useEffect(() => {
-        const pieces = allPieces()
+        let cancelled = false
 
-        const all = dfs(problem, pieces, 0, 0)
-        setSolutions(all)
+        async function f() {
+            const pieces = allPieces()
+
+            const all = new Array<Matrix<CellKind>>()
+            let report = 10
+            for (const x of dfs(problem, pieces, 0, 0, () => { return cancelled })) {
+                if (cancelled) break
+                all.push(x)
+                if (all.length === report) {
+                    report *= 2
+                    setSolutions(all.slice())
+                    await new Promise((resolve) => setTimeout(resolve, 0))
+                }
+            }
+            if (!cancelled) {
+                setSolutions(all.slice())
+            }
+        }
+        f().catch(console.log)
+
+        return () => {
+            cancelled = true
+        }
     }, [problem])
 
     const res = solutions.map((board, i) => <BoardView key={i} board={board} style={{ margin: 2, display: "inline-block" }} />)
 
     return <div>
-        <p>{solutions.length} solutions found</p>
+        <p>{solutions.length} solution{solutions.length === 1 ? "" : "s"} found</p>
         <div>
             {res}
         </div>
@@ -47,17 +55,23 @@ function clone(field: Matrix<CellKind>): Matrix<CellKind> {
     return res
 }
 
-function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number): Array<Matrix<CellKind>> {
+function* dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, cancelled: () => boolean): Generator<Matrix<CellKind>> {
+    if (cancelled()) {
+        return
+    }
     if (prob.rest === 0) {
-        return [clone(prob.field)]
+        console.log('!!!! in dfs')
+        yield clone(prob.field)
+        return
     }
     if (y >= W) {
-        return dfs(prob, pieces, x + 1, 0)
+        yield* dfs(prob, pieces, x + 1, 0, cancelled)
+        return
     }
     if (prob.field[x][y] !== CellKind.Empty) {
-        return dfs(prob, pieces, x, y + 1)
+        yield* dfs(prob, pieces, x, y + 1, cancelled)
+        return
     }
-    const res = new Array<Matrix<CellKind>>()
     for (let k = 0; k < pieces.length; k++) {
         if ((prob.rest >> k & 1) === 0) {
             continue
@@ -67,9 +81,8 @@ function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number): 
             if (!ok) {
                 continue
             }
-            res.push(...dfs(prob, pieces, x, y + 1))
+            yield* dfs(prob, pieces, x, y + 1, cancelled)
             undo()
         }
     }
-    return res
 }

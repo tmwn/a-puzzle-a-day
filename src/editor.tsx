@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react"
 import { BoardView } from "./board"
-import { allPieces, CellKind, flipped, Piece, Problem, rotated } from "./data"
+import { allPieces, CellKind, Piece, Problem } from "./data"
 
 export function Editor(props: { problem: Problem, onChange: (problem: Problem) => void }) {
     const { problem, onChange } = props
@@ -18,13 +18,14 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
         }
         const p = pieces[pi][o]
         const b = new Array<Array<CellKind>>()
-        for (let i = 0; i < p.shape.length; i++) {
+        const n = Math.max(p.shape.length, p.shape[0].length)
+        for (let i = 0; i < n; i++) {
             b.push([])
-            for (let j = 0; j < p.shape[0].length; j++) {
-                b[i].push(p.shape[i][j] ? p.kind : CellKind.Empty)
+            for (let j = 0; j < n; j++) {
+                b[i].push(p.shape.at(i)?.at(j) ? p.kind : CellKind.Empty)
             }
         }
-        return <div ref={pieceRef[pi]} key={pi} draggable={true} style={{ margin: 10, display: "inline-block" }} onDragStart={(ev) => {
+        return <div ref={pieceRef[pi]} key={pi} draggable={true} style={{ margin: 8, display: "inline-block" }} onDragStart={(ev) => {
             const rect = pieceRef[pi].current?.getBoundingClientRect()
             if (!rect) {
                 return
@@ -46,9 +47,8 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
     return <div>
         <div className="pure-u-1-5" />
         <div className="pure-u-4-5">
-            <h2>Problem editor</h2>
             <p>
-                Drag to put. Right-Click to rotate. Click to flip.
+                Click to change orientation. Drag to put.
             </p>
             <div ref={problemRef} id="problem" onClick={(ev) => {
                 const rect = problemRef.current?.getBoundingClientRect()
@@ -81,7 +81,6 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
                     ev.clientY - rect.y - dragState.mousePos[1],
                 ]
                 const [col, row] = [Math.max(0, Math.round(pixelY / N)), Math.max(0, Math.round(pixelX / N))]
-                console.log(col, row)
 
                 const newProblem = problem.clone()
                 const [ok, _] = newProblem.put(dragState.piece, col, row, false)

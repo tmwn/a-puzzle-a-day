@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Problem } from "./data";
-import { Main } from "./solver";
+import { Editor } from "./editor";
+import { Solver } from "./solver";
 
 export function App() {
     const [problem, setProblem] = useState(() => {
@@ -12,7 +13,14 @@ export function App() {
         <MonthDayInput md={{ month: problem.month, day: problem.day }} onChange={(md) => {
             setProblem(new Problem(md.month, md.day))
         }} />
-        <Main problem={problem} onChange={setProblem} />
+        <div className="pure-g">
+            <div className="pure-u-1-2">
+                <Editor problem={problem} onChange={setProblem} />
+            </div>
+            <div className="pure-u-1-2">
+                <Solver problem={problem} />
+            </div>
+        </div>
     </div >
 }
 
@@ -35,9 +43,9 @@ function MonthDayInput(props: { md: MonthDay, onChange: (md: MonthDay) => void }
         <div className="pure-u-1-4" />
         <div className="pure-u-1-4">
             <label>Month</label>
-            <input className="pure-input-1" type="number" min={-1} max={13} value={md.month} onChange={(e) => {
+            <input className="pure-input-1" type="number" min={0} max={13} value={md.month} onChange={(e) => {
                 let v = parseInt(e.target.value)
-                if (!v) {
+                if (Number.isNaN(v)) {
                     return
                 }
                 if (v < 1) v = 12
@@ -47,12 +55,12 @@ function MonthDayInput(props: { md: MonthDay, onChange: (md: MonthDay) => void }
         </div>
         <div className="pure-u-1-4">
             <label>Day</label>
-            <input className="pure-input-1" type="number" min={-1} max={32} value={md.day} onChange={(e) => {
+            <input className="pure-input-1" type="number" min={0} max={32} value={md.day} onChange={(e) => {
                 let [d, m] = [parseInt(e.target.value), md.month]
-                if (!d) {
+                if (Number.isNaN(d)) {
                     return
                 }
-                if (d < 1) { d = 31; m -= 1 }
+                if (d < 1) { d = 31; m -= 1; if (m < 1) m = 12 }
                 if (d > 31) { d = 1; m += 1; if (m > 12) m = 1 }
                 onChange({ month: m, day: d })
             }} />
