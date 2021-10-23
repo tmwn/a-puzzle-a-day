@@ -60,7 +60,6 @@ function* dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, 
         return
     }
     if (prob.rest === 0) {
-        console.log('!!!! in dfs')
         yield clone(prob.field)
         return
     }
