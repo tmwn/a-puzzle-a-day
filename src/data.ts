@@ -2,67 +2,111 @@
 export class Problem {
     month: number
     day: number
-    field: Matrix<CellKind>
+    // field: Matrix<CellKind>
+    masks: Array<number>
     rest: number
+    location: Array<[number, number, Piece] | null>
     constructor(month: number, day: number) {
         this.month = month
         this.day = day
-        this.field = newBoard(month, day)
+        const field = newBoard(month, day)
         this.rest = 0b11111111
+        this.masks = new Array(H).fill(0)
+        this.location = new Array(8).fill(null)
+        for (let i = 0; i < H; i++)for (let j = 0; j < W; j++)this.masks[i] |= (field[i][j] === CellKind.Block ? 1 : 0) << j
     }
     // put returns whether piece is put, and undo function.
     put(piece: Piece, col: number, row: number, computeOffset: boolean): [boolean, () => void] {
+        const fail: [boolean, () => void] = [false, () => { }]
         if ((this.rest >> piece.kind & 1) === 0) {
-            return [false, () => { }]
+            return fail
         }
 
-        const h = piece.shape.length
-        const w = piece.shape[0].length
+        const h = piece.shape.height()
+        const w = piece.shape.width()
 
-        let offY = 0
         if (computeOffset) {
-            while (!piece.shape[0][offY]) offY++
+            let offY = 0
+            while (!piece.shape.at(0, offY)) offY++
+            row -= offY
+            if (row < 0) return fail
         }
+        if (col + h > H || row + w > W) return fail
 
-        const places = new Array<[number, number]>()
         for (let i = 0; i < h; i++) {
-            for (let j = 0; j < w; j++) {
-                if (!piece.shape[i][j]) {
-                    continue
-                }
-                if (col + i >= H || row - offY + j < 0 || row - offY + j >= W || this.field[col + i][row - offY + j] !== CellKind.Empty) {
-                    return [false, () => { }]
-                }
-                places.push([i, j])
+            if (((this.masks[col + i] >> row) & piece.shape.rows[i]) !== 0) {
+                return fail
             }
         }
-        for (const [i, j] of places) {
-            this.field[col + i][row - offY + j] = piece.kind
+        for (let i = 0; i < h; i++) {
+            this.masks[col + i] |= piece.shape.rows[i] << row
+            this.location[piece.kind] = [col, row, piece]
         }
         this.rest &= ~(1 << piece.kind)
         return [true, () => {
             this.rest |= 1 << piece.kind
-            for (const [i, j] of places) {
-                this.field[col + i][row - offY + j] = CellKind.Empty
+            this.location[piece.kind] = null
+            for (let i = 0; i < h; i++) {
+                this.masks[col + i] &= ~(piece.shape.rows[i] << row)
             }
         }]
     }
-    remove(col: number, row: number, target?: CellKind): boolean {
-        if (col < 0 || col >= H || row < 0 || row >= W) return false
-        const kind = this.field[col][row]
-        if (target !== undefined && target !== kind) return false
-        if (kind === CellKind.Block || kind === CellKind.Empty) return false
-        this.rest |= 1 << kind
-        this.field[col][row] = CellKind.Empty
+    private _remove(col: number, row: number, target: CellKind) {
+        if (col < 0 || col >= H || row < 0 || row >= W) return
+        const kind = this.kind(col, row)
+        if (target !== kind) return
+        this.masks[col] &= ~(1 << row)
         for (const [di, dj] of [[-1, 0], [0, -1], [0, 1], [1, 0]]) {
-            this.remove(col + di, row + dj, kind)
+            this._remove(col + di, row + dj, kind)
         }
+    }
+    remove(col: number, row: number): boolean {
+        const kind = this.kind(col, row)
+        if (kind === CellKind.Block || kind === CellKind.Empty) return false
+        this._remove(col, row, kind)
+        this.rest |= 1 << kind
+        this.location[kind] = null
         return true
+    }
+    kind(col: number, row: number): CellKind {
+        if ((this.masks[col] >> row & 1) === 0) return CellKind.Empty
+        for (let k = 0; k < 8; k++) {
+            if (this.contains(k, col, row)) return k
+        }
+        return CellKind.Block
+    }
+    private contains(k: number, col: number, row: number): boolean {
+        if (!this.location[k]) return false
+        const [x, y, p] = this.location[k]!
+        const [i, j] = [col - x, row - y]
+        if (i < 0 || i >= p.shape.height() || j < 0 || j >= p.shape.width()) return false
+        return p.shape.at(i, j) === 1
+    }
+    has(x: number, y: number): boolean {
+        return (this.masks[x] >> y & 1) === 1
+    }
+    field(): Matrix<CellKind> {
+        const res = new Array<Array<CellKind>>()
+        for (let i = 0; i < H; i++) {
+            res.push([])
+            for (let j = 0; j < W; j++) {
+                res[i].push(this.has(i, j) ? CellKind.Block : CellKind.Empty)
+            }
+        }
+        for (let k = 0; k < 8; k++) {
+            if (!this.location[k]) continue
+            const [x, y, p] = this.location[k]!
+            for (let i = 0; i < p.shape.height(); i++) for (let j = 0; j < p.shape.width(); j++) {
+                if (this.contains(k, x + i, y + j)) res[x + i][y + j] = k
+            }
+        }
+        return res
     }
 
     clone(): Problem {
         const res = new Problem(this.month, this.day)
-        for (let i = 0; i < H; i++)for (let j = 0; j < W; j++)res.field[i][j] = this.field[i][j]
+        for (let i = 0; i < H; i++) res.masks[i] = this.masks[i]
+        for (let i = 0; i < 8; i++) res.location[i] = this.location[i]
         res.rest = this.rest
         return res
     }
@@ -83,18 +127,67 @@ export enum CellKind {
 
 export interface Piece {
     kind: CellKind,
-    shape: Matrix<boolean>
+    shape: Shape,
+}
+
+class Shape {
+    rows: Array<number>
+    private w: number
+    constructor(rows: Array<number>, w: number) {
+        this.rows = rows
+        this.w = w
+    }
+    height() {
+        return this.rows.length
+    }
+    width() {
+        return this.w
+    }
+
+    at(i: number, j: number): number {
+        return (this.rows[i]) >> j & 1
+    }
+    rotated(): Shape {
+        const [h, w] = [this.rows.length, this.w]
+        const rows = new Array<number>()
+        for (let i = 0; i < w; i++) {
+            let row = 0
+            for (let j = 0; j < h; j++) {
+                row |= this.at(h - 1 - j, i) << j
+            }
+            rows.push(row)
+        }
+        return new Shape(rows, h)
+    }
+    flipped(): Shape {
+        const [h, w] = [this.rows.length, this.w]
+        const rows = new Array<number>()
+        for (let i = 0; i < h; i++) {
+            let row = 0
+            for (let j = 0; j < w; j++) {
+                row |= this.at(i, w - 1 - j) << j
+            }
+            rows.push(row)
+        }
+        return new Shape(rows, w)
+    }
+    equals(other: Shape): boolean {
+        if (this.w != other.w) return false
+        for (let i = 0; i < this.rows.length; i++) if (this.rows[i] != other.rows[i]) return false
+        return true
+    }
 }
 
 export function allPieces(): Array<Array<Piece>> {
     const decode = (kind: CellKind, encoded: Array<string>): Piece => {
-        const shape = new Array<Array<boolean>>()
+        const masks = new Array<number>()
         const [h, w] = [encoded.length, encoded[0].length]
         for (let i = 0; i < h; i++) {
-            shape.push([])
-            for (let j = 0; j < w; j++)shape[i].push(encoded[i][j] === '1')
+            let mask = 0
+            for (let j = 0; j < w; j++)mask |= (encoded[i][j] === '1' ? 1 : 0) << j
+            masks.push(mask)
         }
-        return { kind: kind, shape: shape }
+        return { kind: kind, shape: new Shape(masks, w) }
     }
     const data: Array<[CellKind, Array<string>]> = [
         [CellKind.PieceO, ["111", "111"]],
@@ -116,7 +209,7 @@ function allOrientaion(initial: Piece): Array<Piece> {
         for (let i = 0; i < 4; i++) {
             let dup = false
             for (const x of res) {
-                if (sameShape(x.shape, p.shape)) {
+                if (x.shape.equals(p.shape)) {
                     dup = true
                     break
                 }
@@ -143,32 +236,16 @@ function sameShape(shape1: Matrix<boolean>, shape2: Matrix<boolean>): boolean {
 }
 
 export function rotated(piece: Piece): Piece {
-    const [h, w] = [piece.shape.length, piece.shape[0].length]
-    const res = new Array<Array<boolean>>()
-    for (let i = 0; i < w; i++) {
-        res.push([])
-        for (let j = 0; j < h; j++) {
-            res[i].push(piece.shape[h - 1 - j][i])
-        }
-    }
     return {
         kind: piece.kind,
-        shape: res,
+        shape: piece.shape.rotated(),
     }
 }
 
 export function flipped(piece: Piece): Piece {
-    const [h, w] = [piece.shape.length, piece.shape[0].length]
-    const res = new Array<Array<boolean>>()
-    for (let i = 0; i < h; i++) {
-        res.push([])
-        for (let j = 0; j < w; j++) {
-            res[i].push(piece.shape[i][w - 1 - j])
-        }
-    }
     return {
         kind: piece.kind,
-        shape: res,
+        shape: piece.shape.flipped(),
     }
 }
 

@@ -18,11 +18,11 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
         }
         const p = pieces[pi][o]
         const b = new Array<Array<CellKind>>()
-        const n = Math.max(p.shape.length, p.shape[0].length)
+        const n = Math.max(p.shape.height(), p.shape.width())
         for (let i = 0; i < n; i++) {
             b.push([])
             for (let j = 0; j < n; j++) {
-                b[i].push(p.shape.at(i)?.at(j) ? p.kind : CellKind.Empty)
+                b[i].push(i < p.shape.rows.length && p.shape.at(i, j) ? p.kind : CellKind.Empty)
             }
         }
         return <div ref={pieceRef[pi]} key={pi} draggable={true} style={{ margin: 8, display: "inline-block" }} onDragStart={(ev) => {
@@ -90,7 +90,7 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
                 onChange(newProblem)
                 setDragState(null)
             }}>
-                <BoardView board={problem.field} size={N} style={{ outline: "solid", outlineColor: "slategray" }} />
+                <BoardView board={problem.field()} size={N} style={{ outline: "solid", outlineColor: "slategray" }} />
             </div>
             <div>
                 {ps}

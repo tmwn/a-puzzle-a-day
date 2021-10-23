@@ -12,22 +12,31 @@ export function Solver(props: { problem: Problem }) {
         async function f() {
             const pieces = allPieces()
 
+            const start = performance.now()
+
             const all = new Array<Matrix<CellKind>>()
-            let report = 10
-            for (const x of dfs(problem, pieces, 0, 0, () => { return cancelled })) {
-                if (cancelled) break
-                all.push(x)
-                if (all.length === report) {
-                    report *= 2
-                    setSolutions(all.slice())
-                    await new Promise((resolve) => setTimeout(resolve, 0))
+            for (let report = 20; !cancelled; report *= 2) {
+                const res = new Array<Matrix<CellKind>>()
+                dfs(problem, pieces, 0, 0, report, res)
+                if (res.length < report) {
+                    all.push(...res)
+                    break
+                }
+                setSolutions(res)
+
+                await new Promise((resolve, _) => setTimeout(resolve, 0))
+
+                if (report >= 1000) {
+                    console.error("BUG: too many solutions")
+                    break
                 }
             }
             if (!cancelled) {
+                console.log(`computed all in ${performance.now() - start} ms`)
                 setSolutions(all.slice())
             }
         }
-        f().catch(console.log)
+        f().catch(console.error)
 
         return () => {
             cancelled = true
@@ -55,32 +64,36 @@ function clone(field: Matrix<CellKind>): Matrix<CellKind> {
     return res
 }
 
-function* dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, cancelled: () => boolean): Generator<Matrix<CellKind>> {
-    if (cancelled()) {
-        return
+function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, limit: number, res: Array<Matrix<CellKind>>) {
+    while (prob.has(x, y)) {
+        y++
+        if (y >= W) {
+            x++
+            y = 0
+        }
     }
-    if (prob.rest === 0) {
-        yield clone(prob.field)
-        return
-    }
-    if (y >= W) {
-        yield* dfs(prob, pieces, x + 1, 0, cancelled)
-        return
-    }
-    if (prob.field[x][y] !== CellKind.Empty) {
-        yield* dfs(prob, pieces, x, y + 1, cancelled)
-        return
-    }
+
     for (let k = 0; k < pieces.length; k++) {
         if ((prob.rest >> k & 1) === 0) {
             continue
         }
-        for (const p of pieces[k]) {
-            const [ok, undo] = prob.put(p, x, y, true)
+        for (let j = 0; j < pieces[k].length; j++) {
+
+            if (res.length >= limit) {
+                return
+            }
+
+            const [ok, undo] = prob.put(pieces[k][j], x, y, true)
             if (!ok) {
                 continue
             }
-            yield* dfs(prob, pieces, x, y + 1, cancelled)
+
+            if (prob.rest === 0) {
+                res.push(prob.field())
+            } else {
+                dfs(prob, pieces, x, y, limit, res)
+            }
+
             undo()
         }
     }
