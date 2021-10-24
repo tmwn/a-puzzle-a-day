@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect, useRef } from "react"
 import { CSSProperties } from "react"
 import { CellKind, Matrix, H, W } from "./data"
 
@@ -28,22 +28,26 @@ function color(x: CellKind) {
     }
 }
 
-export function BoardView(props: { board: Matrix<CellKind>, size?: number, style?: CSSProperties }) {
-    const { board, size, style } = props
+export function BoardView(props: { board: Matrix<CellKind>, cellSize?: number, style?: CSSProperties }) {
+    const { board, cellSize: size, style } = props
 
-    const N = size || 30
-    const res = []
-    for (let i = 0; i < board.length; i++) {
-        const row = []
-        for (let j = 0; j < board[0].length; j++) {
-            const c = color(board[i][j])
-            row.push(<span key={j} style={{ width: N, height: N, backgroundColor: c, display: "inline-block" }} />)
+    const N = size || 20
+    const [h, w] = [board.length, board[0].length]
+
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+
+    useEffect(() => {
+        if (!canvasRef.current) return
+        const ctx = canvasRef.current!.getContext('2d')!
+        ctx.clearRect(0, 0, N * w, N * h)
+        for (let i = 0; i < h; i++) {
+            for (let j = 0; j < w; j++) {
+                const c = color(board[i][j])
+                ctx.fillStyle = c
+                ctx.fillRect(j * N, i * N, N, N)
+            }
         }
-        res.push(<div key={i} style={{ height: N }}>
-            {row}
-        </div>)
-    }
-    return <div style={Object.assign({ width: N * board[0].length }, style)}>
-        {res}
-    </div>
+    })
+
+    return <canvas ref={canvasRef} height={N * h} width={N * w} style={style} />
 }

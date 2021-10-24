@@ -10,6 +10,11 @@ self.onmessage = (message: { data: Problem }) => {
 }
 
 function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, res: Array<Matrix<CellKind>>) {
+    if (prob.rest === 0) {
+        res.push(prob.field())
+        return
+    }
+
     while (prob.has(x, y)) {
         y++
         if (y >= W) {
@@ -28,11 +33,7 @@ function dfs(prob: Problem, pieces: Array<Array<Piece>>, x: number, y: number, r
                 continue
             }
 
-            if (prob.rest === 0) {
-                res.push(prob.field())
-            } else {
-                dfs(prob, pieces, x, y, res)
-            }
+            dfs(prob, pieces, x, y, res)
 
             undo()
         }

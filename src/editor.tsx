@@ -12,6 +12,7 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
     const pieceRef = new Array(pieces.length).fill(0).map(() => useRef<HTMLDivElement>(null))
     const problemRef = useRef<HTMLDivElement>(null)
 
+    const N = 30
     const ps = orientation.map((o, pi) => {
         if ((problem.rest >> pi & 1) == 0) {
             return null
@@ -39,11 +40,9 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
             newOrientation[pi] = (o + 1) % pieces[pi].length
             setOrientation(newOrientation)
         }}>
-            <BoardView board={b} />
+            <BoardView board={b} cellSize={N} />
         </div >
     })
-
-    const N = 30
     return <div>
         <div className="pure-u-1-5" />
         <div className="pure-u-4-5">
@@ -90,7 +89,7 @@ export function Editor(props: { problem: Problem, onChange: (problem: Problem) =
                 onChange(newProblem)
                 setDragState(null)
             }}>
-                <BoardView board={problem.field()} size={N} style={{ outline: "solid", outlineColor: "slategray" }} />
+                <BoardView board={problem.field()} cellSize={N} style={{ outline: "solid", outlineColor: "slategray" }} />
             </div>
             <div>
                 {ps}
